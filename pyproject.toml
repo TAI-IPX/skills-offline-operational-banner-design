@@ -1,0 +1,57 @@
+[project]
+name = "skills-offline-operational-banner-design"
+version = "0.1.0"
+description = "线下活动运营Banner设计工具 — 活动长图+战报+邮件长图+排行榜"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "Pillow>=10.0.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "google-generativeai>=0.3.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.24.0",
+    "pyperclip>=1.8.2",
+    "anthropic>=0.18.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+birefnet = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "transformers>=4.38.0,<5.0.0",
+    "huggingface_hub>=0.20.0",
+    "regex>=2024.5.0",
+    "kornia>=0.7.0",
+    "kornia-rs>=0.1.9",
+]
+ranking = [
+    "jinja2>=3.1.0",
+    "playwright>=1.40.0",
+    "pycryptodome",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]

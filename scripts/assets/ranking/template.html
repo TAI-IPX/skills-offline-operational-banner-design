@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="{{ html_lang }}">
+<head>
+<meta charset="UTF-8">
+<style>
+{% if title_font %}
+@font-face {
+  font-family: 'TitleFont';
+  src: url('{{ title_font }}') format('{{ title_font_format | default("truetype") }}');
+  font-weight: bold;
+  font-style: normal;
+  font-display: block;
+}
+{% endif %}
+{% if body_font %}
+@font-face {
+  font-family: 'DINExp';
+  src: url('{{ body_font }}') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+{% endif %}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ═══════════════════════════════════════════════
+   🎨 渐变遮罩色值 — 在这里统一调整
+   修改 rgba 的前三位改色相，第四位改透明度
+   ═══════════════════════════════════════════════ */
+:root {
+  --overlay-1: {{ overlay.stop1 | default('rgba(13, 43, 26, 0)')      }};  /* 顶部：全透明，露出背景图 */
+  --overlay-2: {{ overlay.stop2 | default('rgba(10, 35, 20, 0.25)')   }};  /* 上部：轻微压暗 */
+  --overlay-3: {{ overlay.stop3 | default('rgba(8, 28, 16, 0.55)')    }};  /* 中部：半透明过渡 */
+  --overlay-4: {{ overlay.stop4 | default('rgba(5, 21, 9, 0.82)')     }};  /* 下部：接近实色 */
+  --overlay-5: {{ overlay.stop5 | default('rgba(5, 21, 9, 0.96)')     }};  /* 底部：几乎不透明，衔接列表 */
+}
+
+body {
+  width: 1080px;
+  background: {{ theme.bg_bottom }};
+  font-family: -apple-system, 'PingFang SC', 'Noto Sans CJK SC',
+               'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hero-bg {
+  {% if hero_bg %}
+  background: url('{{ hero_bg }}') center top / cover no-repeat;
+  {% else %}
+  background: linear-gradient(180deg,
+    {{ theme.bg_top }}    0%,
+    {{ theme.bg_mid }}    35%,
+    {{ theme.bg_bottom }} 65%,
+    #100D0A 100%);
+  {% endif %}
+  position: relative;
+}
+
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    var(--overlay-1)  0%,
+    var(--overlay-2)  25%,
+    var(--overlay-3)  50%,
+    var(--overlay-4)  75%,
+    var(--overlay-5)  100%
+  );
+}
+
+.hero-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ───────────── HEADER ───────────── */
+.header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 26px 48px 22px;
+}
+
+/* ───────────── HERO DECO ───────────── */
+.hero-crown {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+
+/* ───────────── TITLE ───────────── */
+.title-section {
+  text-align: center;
+  padding: 480px 0 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.subtitle-text {
+  color: #FFFFFF;
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: 7px;
+  margin-bottom: 6px;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.main-title-text {
+  font-family: 'TitleFont', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 84px;
+  font-weight: 900;
+  background: linear-gradient(180deg,
+    {{ theme.title_from }} 0%,
+    {{ theme.title_mid }}  40%,
+    {{ theme.title_from }} 68%,
+    {{ theme.title_to }}   100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.08;
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
+
+/* ───────────── PODIUM ───────────── */
+.podium {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 64px 60px 28px;
+}
+
+.podium-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  max-width: 270px;
+}
+
+.icon-crown-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.podium-slot.slot-center {
+  max-width: 310px;
+  padding-bottom: 28px; /* elevate center */
+}
+
+.rank-crown {
+  width: 80px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.podium-slot.slot-center .rank-crown {
+  width: 120px;
+  bottom: -70px;
+}
+
+.icon-wrap {
+  border-radius: 50px;
+  overflow: hidden;
+  border: 3px solid {{ theme.icon_border_light }};
+  background: {{ theme.icon_bg }};
+  flex-shrink: 0;
+}
+
+.icon-wrap.icon-side  { width: 134px; height: 134px; }
+.icon-wrap.icon-center {
+  width: 170px;
+  height: 170px;
+  border: 3px solid {{ theme.icon_border }};
+  border-radius: 50px;
+}
+
+.icon-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.icon-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.8);
+}
+
+.icon-wrap.icon-center .icon-placeholder { font-size: 56px; }
+
+.podium-name {
+  color: white;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.35;
+  margin-top: 50px;
+}
+.podium-slot.slot-center .podium-name { font-size: 26px; margin-top: 60px; }
+
+.podium-developer {
+  color: rgba(255,255,255,0.5);
+  font-size: 16px;
+  text-align: center;
+}
+
+.new-badge-inline {
+  display: inline-block;
+  background: linear-gradient(135deg, #FF6B35, #E53935);
+  color: white;
+  font-family: 'DINExp', -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.5px;
+}
+
+/* ───────────── RANKINGS LIST ───────────── */
+.rankings-footer-container {
+  margin: 6px 166px 0;
+  border-radius: 18px;
+  padding: 2px;
+  background: linear-gradient(160deg,
+    {{ theme.icon_border }} 0%,
+    {{ theme.icon_border_light }} 30%,
+    rgba(255,255,255,0.06) 100%);
+  position: relative;
+}
+.rankings-footer-container::before,
+.rankings-footer-container::after {
+  content: '';
+  position: absolute;
+  top: 10%;
+  width: 2px;
+  height: 80%;
+  border-radius: 1px;
+  opacity: 0.8;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    {{ theme.icon_border_light }} 20%,
+    {{ theme.icon_border }} 50%,
+    {{ theme.icon_border_light }} 80%,
+    transparent 100%);
+}
+.rankings-footer-container::before { left: -12px; }
+.rankings-footer-container::after { right: -12px; }
+
+.rankings-wrap {
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
+}
+
+.ranking-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 34px;
+  height: 88px;
+  background: {{ theme.row_odd }};
+  border-bottom: 1px solid {{ theme.row_border }};
+  gap: 16px;
+}
+.ranking-row:last-child { border-bottom: none; }
+.ranking-row:nth-child(even) { background: {{ theme.row_even }}; }
+
+.r-num {
+  width: 34px;
+  text-align: center;
+  font-family: 'DINExp', -apple-system, sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: {{ theme.row_num }};
+  opacity: 0.7;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.r-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #CCC;
+  box-shadow: 0 0 0 0.5px rgba(255,255,255,0.05);
+}
+.r-icon-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.r-icon-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.9);
+}
+
+.r-name {
+  width: 240px;
+  font-size: 20px;
+  font-weight: 600;
+  color: {{ theme.row_name }};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.r-trend {
+  min-width: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 30px;
+}
+
+.trend-up {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #D32F2F;
+  font-family: 'DINExp', -apple-system, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+.trend-up svg { flex-shrink: 0; }
+
+.trend-down {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #388E3C;
+  font-family: 'DINExp', -apple-system, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+.trend-down svg { flex-shrink: 0; }
+
+.trend-new {
+  background: linear-gradient(135deg, #FF6B35 0%, #E53935 100%);
+  color: white;
+  font-family: 'DINExp', -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.r-developer {
+  min-width: 155px;
+  text-align: left;
+  margin-left: 36px;
+  font-size: 18px;
+  color: {{ theme.row_dev }};
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ───────────── FOOTER ───────────── */
+.footer-wrap {
+  background: rgba(0,0,0,0.35);
+  border-radius: 0 0 14px 14px;
+  padding: 14px 26px 16px;
+}
+.footer-text {
+  color: rgba(255,255,255,0.38);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.7;
+}
+.bottom-spacer { height: 36px; }
+
+.podium-gradient-bar {
+  height: 2px;
+  margin: 0 178px;
+  position: relative;
+  top: -4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    {{ theme.icon_border_light }} 20%,
+    {{ theme.icon_border }} 50%,
+    {{ theme.icon_border_light }} 80%,
+    transparent 100%);
+}
+</style>
+</head>
+<body>
+
+<!-- ── Hero Background ── -->
+<div class="hero-bg">
+
+<!-- ── Header ── -->
+<div class="header">
+  <img src="{{ logo_path }}" alt="Logo" style="height:38px">
+</div>
+
+
+<!-- ── Title ── -->
+<div class="title-section">
+  <div class="subtitle-text">{{ subtitle }}</div>
+  <div class="title-row">
+    <div class="main-title-text">{{ title }}</div>
+  </div>
+</div>
+
+<!-- ── Top 3 Podium ── -->
+<div class="podium">
+  {% for item in podium %}
+  <div class="podium-slot {% if item.rank == 1 %}slot-center{% else %}slot-side{% endif %}">
+    <div class="icon-crown-group">
+      <div class="icon-wrap {% if item.rank == 1 %}icon-center{% else %}icon-side{% endif %}">
+        {% if item.icon_path %}
+          <img src="{{ item.icon_path }}" alt="{{ item.name }}">
+        {% else %}
+          <div class="icon-placeholder" style="background:{{ item.placeholder_bg }}">
+            {{ item.name[0] }}
+          </div>
+        {% endif %}
+      </div>
+      {% if item.rank == 1 %}
+        <img class="rank-crown" src="{{ crown_no1 }}" alt="No.1">
+      {% elif item.rank == 2 %}
+        <img class="rank-crown" src="{{ crown_no2 }}" alt="No.2">
+      {% else %}
+        <img class="rank-crown" src="{{ crown_no3 }}" alt="No.3">
+      {% endif %}
+    </div>
+
+    <div class="podium-name">
+      {{ item.name }}
+      {% if item.is_new %}<span class="new-badge-inline">{{ badge_new }}</span>{% endif %}
+    </div>
+    <div class="podium-developer">{{ item.developer }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+</div><!-- /.hero-bg -->
+
+<div class="podium-gradient-bar"></div>
+
+<!-- ── Rankings 4–20 ── -->
+<div class="rankings-footer-container">
+<div class="rankings-wrap">
+  {% for item in rankings %}
+  <div class="ranking-row">
+    <div class="r-num">{{ item.rank }}</div>
+
+    <div class="r-icon-wrap">
+      {% if item.icon_path %}
+        <img src="{{ item.icon_path }}" alt="{{ item.name }}">
+      {% else %}
+        <div class="r-icon-placeholder" style="background:{{ item.placeholder_bg }}">
+          {{ item.name[0] }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="r-name">{{ item.name }}{% if item.trend == "new" %}<span class="trend-new" style="margin-left:10px;vertical-align:middle">{{ badge_new }}</span>{% endif %}</div>
+
+    <div class="r-trend">
+      {% if item.trend == "new" %}
+      {% elif item.trend and item.trend[:2] == "up" %}
+        <span class="trend-up">
+          <svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,1 13,13 1,13" fill="#D32F2F"/></svg>
+          {{ item.trend[2:] }}
+        </span>
+      {% elif item.trend and item.trend[:4] == "down" %}
+        <span class="trend-down">
+          <svg width="14" height="14" viewBox="0 0 14 14"><polygon points="7,13 13,1 1,1" fill="#388E3C"/></svg>
+          {{ item.trend[4:] }}
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="r-developer">{{ item.developer }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ── Footer ── -->
+<div class="footer-wrap">
+  <div class="footer-text">{{ footer_note }}</div>
+</div>
+</div><!-- /.rankings-footer-container -->
+<div class="bottom-spacer"></div>
+
+</body>
+</html>
