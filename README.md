@@ -54,7 +54,6 @@ cp .env.example .env
 │   ├── battle_report/       # 战报合成（KV + 截图 + 数据卡）
 │   ├── email_poster/        # 邮件长图合成（KV + EVENT01~04 四区）
 │   ├── ranking/             # 排行榜合成（CSV→JSON + 图标 + 背景 + 截图）
-│   ├── hd/                  # HD Banner 管线
 ├── docs/                    # 文档
 ├── input/                   # 输入素材（图片、奖品等，含 uploads/）
 ├── output/                  # 输出结果
