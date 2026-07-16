@@ -44,17 +44,10 @@ py scripts/run_full_with_custom_prompt.py -g 活动长图 --xingchengpt --packy7
   -m "主标题" -s "副标题" --event-date "活动时间" \
   --prize-dir input/prizes --rules "规则一|规则二|规则三"
 
-# 活动长图仅合成（跳过 Step1，复用已有 KV）
-py scripts/run_changtu.py --kv input/kv.jpg -m "主标题" -s "副标题" --xingchengpt
-
 # 战报（全流程）
 py scripts/run_full_with_custom_prompt.py -g 战报 --xingchengpt \
   --report-dir <素材目录> -m "主标题" -s "副标题" \
   --stat-group "标题|标签|值|标签|值" --font-family "字体名"
-
-# 战报仅合成（跳过 Step1，复用已有 KV）
-py scripts/run_battle_report.py --kv input/KV.jpg --report-dir <素材目录> \
-  -m "主标题" -s "副标题"
 
 # 邮件长图（全流程）
 py scripts/run_full_with_custom_prompt.py -g 邮件长图 \
@@ -79,38 +72,6 @@ py scripts/run_email_poster.py --kv input/kv.png -m "主标题" -s "副标题" -
 py scripts/run_full_with_custom_prompt.py -g 排行榜 --xingchengpt \
   --ranking-csv "input/ranking/榜单.csv" --ranking-theme gold
 
-# 排行榜（跳过 AI 背景，用 CSS 渐变兜底）
-py scripts/run_full_with_custom_prompt.py -g 排行榜 \
-  --ranking-csv "input/ranking/榜单.csv" --skip-bg
-
-# 排行榜仅合成（复用已有数据，跳过图标和背景）
-py scripts/run_ranking.py --csv output/排行榜_xxx/data.json \
-  --output-dir output/排行榜_xxx --skip-icons --skip-bg
-```
-
-## 后端组合
-
-| 分类 | Key 变量 | 命令行标志 | 用途 |
-|------|----------|-----------|------|
-| Gemini 编辑 | `GEMINI_API_KEY` | `--packy7s` / `--packy3s` | Vision 检测 + 扩图 + mask 编辑 |
-| gpt-image-2 生图 | `PACKYGPT_API_KEY` | `--packygpt` | t2i 文生图 |
-| gpt-image-2 生图 | `MICUAPI_API_KEY` | `--micugpt2` | t2i + Vision |
-| gpt-image-2 生图 | `XINGCHENGGPT_API_KEY` | `--xingchengpt` | t2i 文生图 |
-| gpt-image-2 生图 | `XINCHENGPT_API_KEY` | `--xinchengpt` | t2i 文生图 |
-| gpt-image-2 生图 | `MOXINGPT_API_KEY` | `--moxingpt` | t2i 文生图 |
-| Gemini 编辑 | `XINGCHENGEMINI_API_KEY` | `--xingchengemini` | Vision + 扩图 + mask |
-| Gemini 编辑 | `MOXINGEMINI_API_KEY` | `--moxingemini` | Vision + 扩图 + mask |
-| 即梦 | `VOLC_ACCESS_KEY_ID` + `VOLC_SECRET_ACCESS_KEY` | `--jimeng` | 火山引擎生图 |
-| 可选 | `ANTHROPIC_API_KEY` | `--prompt-engine-claude` | Claude 推导描述 |
-
-## 图片输入
-
-在 OpenCode 对话框粘贴图片后，image-saver 插件自动保存到 `input/`：
-- `input/uploads/current.png` — 最新图片固定路径
-- `input/uploads/<时间戳>.png` — 历史存档
-- `input/uploads_index.json` — 上传记录索引
-
-遇到图片无法提取时，直接读取 `input/uploads_index.json` 获取最新路径，或使用 `input/uploads/current.png`。
 
 ## 项目结构
 
@@ -133,7 +94,6 @@ py scripts/run_ranking.py --csv output/排行榜_xxx/data.json \
 │   ├── email_poster/        # 邮件长图合成（KV + EVENT01~04 四区）
 │   ├── ranking/             # 排行榜合成（CSV→JSON + 图标 + 背景 + 截图）
 │   ├── hd/                  # HD Banner 管线
-│   └── tests/               # 测试脚本
 ├── docs/                    # 文档
 ├── input/                   # 输入素材（图片、奖品等，含 uploads/）
 ├── output/                  # 输出结果
