@@ -114,30 +114,29 @@ py scripts/run_ranking.py --csv output/排行榜_xxx/data.json \
 
 ## 项目结构
 
-```
+```text
 .
-├── .env                     # API 密钥（勿提交）
-├── .env.example             # 密钥模板
-├── AGENTS.md                # Agent 协作说明
-├── pyproject.toml           # 依赖配置
-├── .claude/skills/          # 技能脚本
-│   ├── banner-background-from-description/  # 文生图
-│   ├── banner-background-from-image/       # 图生背景
-│   ├── banner-composer/                    # 横幅合成
-│   ├── battle-report-composer/             # 战报合成
-│   ├── banner-spec/                        # 画布预设与安全区
-│   └── prompt-engine/                      # Prompt 生成系统
-├── scripts/                 # 主入口脚本 + 管线
-│   ├── changtu/             # 活动长图合成（KV + 取色 + AI 背景 + 三区排版）
-│   ├── battle_report/       # 战报合成（KV + 截图 + 数据卡）
-│   ├── email_poster/        # 邮件长图合成（KV + EVENT01~04 四区）
-│   ├── ranking/             # 排行榜合成（CSV→JSON + 图标 + 背景 + 截图）
-│   ├── hd/                  # HD Banner 管线
-│   └── tests/               # 测试脚本
-├── docs/                    # 文档
-├── input/                   # 输入素材（图片、奖品等，含 uploads/）
-├── output/                  # 输出结果
-└── fonts/                   # 字体文件
+|-- .env                     # API 密钥（勿提交）
+|-- .env.example             # 密钥模板
+|-- AGENTS.md                # Agent 协作说明
+|-- pyproject.toml           # 依赖配置
+|-- .claude/skills/          # 技能脚本
+|   |-- banner-background-from-description/  # 文生图
+|   |-- banner-background-from-image/       # 图生背景
+|   |-- banner-composer/                    # 横幅合成
+|   |-- battle-report-composer/             # 战报合成
+|   |-- banner-spec/                        # 画布预设与安全区
+|   |-- prompt-engine/                      # Prompt 生成系统
+|-- scripts/                 # 主入口脚本 + 管线
+|   |-- changtu/             # 活动长图合成（KV + 取色 + AI 背景 + 三区排版）
+|   |-- battle_report/       # 战报合成（KV + 截图 + 数据卡）
+|   |-- email_poster/        # 邮件长图合成（KV + EVENT01~04 四区）
+|   |-- ranking/             # 排行榜合成（CSV→JSON + 图标 + 背景 + 截图）
+|   |-- hd/                  # HD Banner 管线
+|-- docs/                    # 文档
+|-- input/                   # 输入素材（图片、奖品等，含 uploads/）
+|-- output/                  # 输出结果
+|-- fonts/                   # 字体文件
 ```
 
 ## 文档
