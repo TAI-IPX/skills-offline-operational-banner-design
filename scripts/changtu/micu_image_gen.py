@@ -48,7 +48,7 @@ def _resolve_t2i_backend() -> tuple[str, str, str, str]:
     elif backend == "moxingpt":
         key = os.environ.get("MOXINGPT_API_KEY", "").strip()
         base = os.environ.get("MOXINGPT_BASE_URL", "https://www.moxin.studio").strip().rstrip("/")
-        model = os.environ.get("MOXINGPT_MODEL", "gpt-image-2").strip()
+        model = os.environ.get("MOXINGPT_MODEL", "[次]gpt-image-2").strip()
         return key, f"{base}/v1/images/generations", model, "moxingpt"
 
     elif backend == "micugpt2":

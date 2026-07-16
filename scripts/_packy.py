@@ -111,7 +111,8 @@ def apply_packy_backend(args, *, allow_packy3s: bool = True) -> None:
     if getattr(args, "moxingemini", False):
         os.environ["GOOGLE_GEMINI_BASE_URL"] = os.environ.get("MOXINGEMINI_BASE_URL", "https://www.moxin.studio").strip()
         if not os.environ.get("GEMINI_MODEL"):
-            os.environ["GEMINI_MODEL"] = "[次]gemini-3.1-flash-image-preview,[次]gemini-3-pro-image-preview"
+            _default_pool = os.environ.get("MOXINGEMINI_MODEL_POOL", "[特次卡】gemini-3.1-pro-preview-think,[特价次卡]gemini-3.1-pro-preview,[特价次卡]gemini-2.5-pro,[次]gemini-3.1-flash-image-preview,[次]gemini-3.1-flash-image,[次]gemini-3-pro-image,[次]gemini-3-pro-image-preview")
+            os.environ["GEMINI_MODEL"] = _default_pool
         os.environ["GEMINI_VISION_MODEL"] = os.environ.get("MOXINGEMINI_VISION_MODEL", "[次]gemini-3.1-flash-image-preview")
         mg_key = get_env_key("MOXINGEMINI_API_KEY")
         if mg_key and str(mg_key).strip().startswith("sk-"):
@@ -207,18 +208,19 @@ def apply_packy_backend(args, *, allow_packy3s: bool = True) -> None:
             print("Error: 使用 -micugemini 时请在 .env 中设置 MICUGEMINI_API_KEY（且以 sk- 开头）", file=sys.stderr)
             sys.exit(1)
 
-    # --moxingpt：通过 moxin.studio 调用 gpt-image-2，NewAPI channel 连接
+    # --moxingpt：通过 moxin.studio 调用 gpt-image-2，NewAPI channel 连接；与 --moxingemini 组合时编辑走 Gemini
     elif getattr(args, "moxingpt", False):
         moxingpt_key = get_env_key("MOXINGPT_API_KEY")
         if moxingpt_key and str(moxingpt_key).strip().startswith("sk-"):
             os.environ["MOXINGPT_API_KEY"] = str(moxingpt_key).strip()
             os.environ["BANNER_IMAGE_BACKEND"] = "moxingpt"
-            if getattr(args, "xingchengemini1", False) or getattr(args, "xingchengemini", False) or getattr(args, "packy7s", False) or getattr(args, "packy", False):
+            if getattr(args, "xingchengemini1", False) or getattr(args, "xingchengemini", False) or getattr(args, "packy7s", False) or getattr(args, "packy", False) or getattr(args, "moxingemini", False):
                 os.environ["BANNER_EDIT_BACKEND"] = "gemini"
         else:
             print("Error: 使用 -moxingpt 时请在 .env 中设置 MOXINGPT_API_KEY（且以 sk- 开头）", file=sys.stderr)
             sys.exit(1)
 
+    # --moxingpt 必须在 --moxingemini / --xingchengemini 之前，保证 --moxingpt --moxingemini 组合时生图选 gpt-image-2
     # --xingchengemini1：块1已替换 GEMINI_API_KEY，块2设 BANNER_IMAGE_BACKEND=gemini 走原生 API
     elif getattr(args, "xingchengemini1", False):
         os.environ["BANNER_IMAGE_BACKEND"] = "gemini"

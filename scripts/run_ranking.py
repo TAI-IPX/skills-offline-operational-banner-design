@@ -212,7 +212,6 @@ def csv_to_json(csv_path: Path, theme: str, output_dir: Path, lang: str = "zh") 
         "hero_bg": "",
         "hero_bg_prompt": THEME_BG_PROMPTS.get(theme, THEME_BG_PROMPTS["gold"]),
         "overlay": {},
-        "decorations": {"medal_style": "refstyle"},
         "footer_note": loc.get("default_footer_note", ""),
         "top3": top3,
         "rankings": rankings,

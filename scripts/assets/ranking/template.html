@@ -230,15 +230,10 @@ body {
   text-align: center;
 }
 
-.new-badge-inline {
+.new-badge-img {
   display: inline-block;
-  background: linear-gradient(135deg, #FF6B35, #E53935);
-  color: white;
-  font-family: 'DINExp', -apple-system, sans-serif;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 10px;
+  height: 28px;
+  width: auto;
   margin-left: 6px;
   vertical-align: middle;
   letter-spacing: 0.5px;
@@ -373,18 +368,6 @@ body {
 }
 .trend-down svg { flex-shrink: 0; }
 
-.trend-new {
-  background: linear-gradient(135deg, #FF6B35 0%, #E53935 100%);
-  color: white;
-  font-family: 'DINExp', -apple-system, sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  padding: 4px 8px;
-  border-radius: 12px;
-  white-space: nowrap;
-  letter-spacing: 0.5px;
-}
-
 .r-developer {
   min-width: 155px;
   text-align: left;
@@ -470,7 +453,7 @@ body {
 
     <div class="podium-name">
       {{ item.name }}
-      {% if item.is_new %}<span class="new-badge-inline">{{ badge_new }}</span>{% endif %}
+      {% if item.is_new %}{% if badge_new_path %}<img class="new-badge-img" src="{{ badge_new_path }}">{% endif %}{% endif %}
     </div>
     <div class="podium-developer">{{ item.developer }}</div>
   </div>
@@ -498,7 +481,7 @@ body {
       {% endif %}
     </div>
 
-    <div class="r-name">{{ item.name }}{% if item.trend == "new" %}<span class="trend-new" style="margin-left:10px;vertical-align:middle">{{ badge_new }}</span>{% endif %}</div>
+    <div class="r-name">{{ item.name }}{% if item.trend == "new" %}{% if badge_new_path %}<img class="new-badge-img" style="margin-left:10px;vertical-align:middle" src="{{ badge_new_path }}">{% endif %}{% endif %}</div>
 
     <div class="r-trend">
       {% if item.trend == "new" %}

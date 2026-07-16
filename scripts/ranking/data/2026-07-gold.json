@@ -2,9 +2,6 @@
   "year": "2026",
   "month": "7月",
   "theme": "gold",
-  "decorations": {
-    "medal_style": "refstyle"
-  },
   "hero_bg": "assets/hero_bg_2026_7月.png",
   "overlay": {
     "stop1": "rgba(40,30,5,0)",

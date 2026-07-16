@@ -20,6 +20,7 @@
     --history-dir input/history --intro-text "游戏介绍..."
 """
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -44,8 +45,8 @@ _ENV_KEYS = (
     "MICUAPI_API_KEY", "MICU_API_KEY",
     "XINGCHENGGPT_API_KEY", "XINGCHENGGPT_BASE_URL",
     "XINGCHENGEMINI_API_KEY", "XINGCHENGEMINI_BASE_URL",
-    "MOXINGPT_API_KEY", "MOXINGPT_BASE_URL",
-    "MOXINGEMINI_API_KEY", "MOXINGEMINI_BASE_URL",
+    "MOXINGPT_API_KEY", "MOXINGPT_BASE_URL", "MOXINGPT_MODEL",
+    "MOXINGEMINI_API_KEY", "MOXINGEMINI_BASE_URL", "MOXINGEMINI_MODEL",
     "BANNER_IMAGE_BACKEND", "BANNER_EDIT_BACKEND",
     "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL",
 )
@@ -84,8 +85,9 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("-s", "--subtitle", default="", dest="subtitle", help="副标题")
 
     ap.add_argument("--event-date", default="", help="EVENT01 活动时间")
-    ap.add_argument("--prize-dir", default="", help="EVENT01 奖品图标目录")
-    ap.add_argument("--prize-order", default="", help="EVENT01 奖品排序关键词，| 分隔")
+    ap.add_argument("--date-dir", default="", help="EVENT01 活动时间配图目录")
+    ap.add_argument("--prize-dir", default="", help="EVENT03 奖品图标目录")
+    ap.add_argument("--prize-order", default="", help="EVENT03 奖品排序关键词，| 分隔")
 
     ap.add_argument("--method-dir", default="", help="EVENT02 参与方法截图目录")
     ap.add_argument("--method-desc", default="", help="EVENT02 参与方法文字，| 分隔多段")
@@ -94,6 +96,12 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--history-order", default="", help="EVENT03 往期中奖排序关键词，| 分隔")
 
     ap.add_argument("--intro-text", default="", help="EVENT04 游戏介绍正文")
+
+    ap.add_argument("--section-titles", default="",
+                    help='自定义分区标题 JSON 字符串或 .json 文件路径: '
+                         '{"event01":"福利活动","event02":null,...}。null=跳过该分区')
+    ap.add_argument("--section-titles-file", default="",
+                    help="从文件读取 section_titles JSON（避免 PowerShell 引号转义问题）")
 
     ap.add_argument("--brand-logo", default="", help="左上角品牌小 icon 路径")
     ap.add_argument("--brand-name", default="", help="左上角品牌行主文字（如 世界）")
@@ -167,7 +175,21 @@ def main() -> None:
     prize_order = ([s.strip() for s in args.prize_order.split("|") if s.strip()]
                    if args.prize_order else None)
     history_order = ([s.strip() for s in args.history_order.split("|") if s.strip()]
-                     if args.history_order else None)
+                      if args.history_order else None)
+    section_titles = None
+    # 优先从文件读取（避免 PowerShell 命令行引号转义问题）
+    if args.section_titles_file and Path(args.section_titles_file).is_file():
+        section_titles = json.loads(Path(args.section_titles_file).read_text(encoding="utf-8-sig"))
+    elif args.section_titles:
+        raw = args.section_titles.strip()
+        # 支持直接传文件路径
+        if raw.endswith(".json") and Path(raw).is_file():
+            section_titles = json.loads(Path(raw).read_text(encoding="utf-8"))
+        else:
+            try:
+                section_titles = json.loads(raw)
+            except json.JSONDecodeError as e:
+                print(f"[run_email_poster] --section-titles JSON 解析失败: {e}，已忽略", flush=True)
 
     sys.path.insert(0, str(ROOT / "scripts"))
     from email_poster import make_email_poster
@@ -186,6 +208,7 @@ def main() -> None:
         main_title=args.main_title,
         sub_title=args.subtitle,
         event_date=args.event_date,
+        date_dir=args.date_dir,
         prize_dir=args.prize_dir,
         prize_order=prize_order,
         method_desc=args.method_desc,
@@ -197,6 +220,7 @@ def main() -> None:
         brand_logo=args.brand_logo or None,
         brand_name=args.brand_name,
         brand_sublabel=args.brand_sublabel,
+        section_titles=section_titles,
     )
 
 

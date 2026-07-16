@@ -39,7 +39,8 @@ SECTION_GAP = 60
 SECTION_PAD_LR = 72
 SECTION_PAD_TOP = 60
 SECTION_PAD_BOTTOM = 60
-SECTION_TITLE_SIZE = 72
+SECTION_TITLE_SIZE = 96
+CANVAS_PAD_BOTTOM = 200   # 画布底部留白
 
 # ── Event badge ──
 BADGE_PAD_X = 40
@@ -67,10 +68,7 @@ CARD_NAME_SIZE = 36
 CARD_NAME_H = 56
 CARD_IMG_PAD = 24
 
-# ── Shadows ──
-SHADOW_OFFSET = (8, 12)
-SHADOW_BLUR = 8
-SHADOW_ALPHA = 200
+# ── Shadows removed ──
 
 # ── Frosted frame ──
 FRAME_BORDER_WIDTH = 2
@@ -101,6 +99,11 @@ WAVE_SAMPLE_COUNT = 20
 
 # ── Decor stickers (吉祥物/水滴贴纸) ──
 STICKER_SIZE = 816  # 最小满足 API 像素要求（655360px）且为 16 倍数，生成后缩放到目标尺寸
+
+# ── Combined section banner (AI 装饰背景 + 分区标题，替代 transition + section banner) ──
+COMBINED_BANNER_H = 640          # API 生成高度（px），16的倍数，满足 ≤3:1 纵横比
+COMBINED_BANNER_DISPLAY_H = 320  # 实际显示高度（px），从生成图中裁剪中心
+TRANSITION_BANNER_EDGE_FADE = 10 # 上下边缘渐变融合宽度（px）
 
 # ── Section banner (从战报移植：渐变+半调网点+辉光+描边炫彩栏头) ──
 SECTION_BANNER_H = 200
@@ -139,16 +142,7 @@ def _drop_shadow(canvas, _draw,
                  x: int, y: int, w: int, h: int,
                  radius: int,
                  shadow_color: tuple[int, int, int] | None = None) -> None:
-    sx, sy = SHADOW_OFFSET
-    shadow = Image.new("RGBA", (w + sx * 2 + SHADOW_BLUR * 2,
-                                 h + sy * 2 + SHADOW_BLUR * 2), (0, 0, 0, 0))
-    fill = (*shadow_color, SHADOW_ALPHA) if shadow_color else (0, 0, 0, SHADOW_ALPHA)
-    sd = ImageDraw.Draw(shadow)
-    sd.rounded_rectangle(
-        [SHADOW_BLUR, SHADOW_BLUR, SHADOW_BLUR + w, SHADOW_BLUR + h],
-        radius=radius, fill=fill)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(SHADOW_BLUR))
-    canvas.paste(shadow, (x - SHADOW_BLUR + sx, y - SHADOW_BLUR + sy), shadow)
+    pass
 
 
 def _line_height(font: ImageFont.FreeTypeFont) -> int:
@@ -208,7 +202,10 @@ def _draw_halftone_band(ld: ImageDraw.ImageDraw,
                 ld.rectangle([xx, yy, xx + dot - 2, yy + dot - 2], fill=(*rgb, alpha))
 
 
-def _load_font(path: str | Path, size: int) -> ImageFont.FreeTypeFont:
+def _load_font(path: str | Path | ImageFont.FreeTypeFont, size: int) -> ImageFont.FreeTypeFont:
+    """支持传入路径或已加载的字体对象。"""
+    if isinstance(path, ImageFont.FreeTypeFont):
+        return ImageFont.truetype(path.path, size)
     return ImageFont.truetype(str(Path(path).resolve()), size)
 
 
@@ -369,26 +366,8 @@ def _draw_neon_border(canvas, x: int, y: int, w: int, h: int,
                       radius: int = 16,
                       glow_layers: int = 6,
                       line_width: int = 2) -> None:
-    """霓虹发光边框：外层大 blur 高 alpha → 内层小 blur 低 alpha，产品级光晕。"""
-    GLOW_EXPAND = 20  # 总扩散半径（像素）
-    for i in range(0, glow_layers):
-        expand = int(GLOW_EXPAND * ((glow_layers - i) / glow_layers) ** 1.5)  # 外层大扩散
-        alpha = int(30 + 40 * (i / max(glow_layers - 1, 1)) ** 2)  # 外层 alpha 30，内层 70
-        glow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-        gd = ImageDraw.Draw(glow)
-        gd.rounded_rectangle(
-            [x - expand, y - expand, x + w + expand, y + h + expand],
-            radius=radius + expand,
-            outline=(*glow_color, alpha),
-            width=max(3, 12 - i * 2))
-        glow = glow.filter(ImageFilter.GaussianBlur(max(2, expand * 0.8)))
-        canvas.alpha_composite(glow)
-    d = ImageDraw.Draw(canvas)
-    d.rounded_rectangle(
-        [x, y, x + w, y + h],
-        radius=radius,
-        outline=(*glow_color, 180),
-        width=line_width)
+    """Function kept for compatibility but no longer used."""
+    pass
 
 
 def _frosted_frame(canvas, draw,
@@ -396,7 +375,6 @@ def _frosted_frame(canvas, draw,
                    tint_rgb: tuple[int, int, int],
                    border_color: tuple[int, int, int],
                    radius: int, border_width: int) -> None:
-    _drop_shadow(canvas, draw, x, y, w, h, radius, shadow_color=border_color)
     region = canvas.crop((x, y, x + w, y + h))
     blurred = region.filter(ImageFilter.GaussianBlur(FRAME_BLUR_RADIUS))
     tint = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -408,8 +386,8 @@ def _frosted_frame(canvas, draw,
             tp[px, py] = (*tint_rgb, a)
     blended = Image.alpha_composite(blurred.convert("RGBA"), tint)
     canvas.paste(blended, (x, y), blended)
-    _draw_neon_border(canvas, x, y, w, h, border_color,
-                      radius=radius, glow_layers=6, line_width=border_width)
+    # _draw_neon_border(canvas, x, y, w, h, border_color,
+    #                   radius=radius, glow_layers=6, line_width=border_width)
 
 
 
@@ -501,6 +479,234 @@ def _draw_wave_divider(canvas, y: int, color: tuple[int, int, int], alpha: int =
     wave.append((0, h))
     ld.polygon(wave, fill=(*color, alpha))
     canvas.paste(overlay, (0, y), overlay)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Transition banner prompts (区块间 AI 生图全宽分割条)
+# ══════════════════════════════════════════════════════════════════
+
+_TRANSITION_BANNER_PROMPTS = [
+    # 0: KV hero → 活动时间
+    (
+        "A wide panoramic transition strip bridging the hero artwork to an activity timeline. "
+        "Subtle countdown motifs, soft calendar glyphs, golden star sparkles, and prize ribbon "
+        "accents flowing from left to right. "
+        "Color palette harmonizes with the hero art: deep blues, mystical purples, and warm gold highlights. "
+        "Smooth horizontal gradient, no hard edges, cinematic lighting, ultra-wide 1920x450 banner format."
+    ),
+    # 1: 活动时间 → 参与方法
+    (
+        "A wide panoramic transition strip from activity schedule to how-to-participate steps. "
+        "Flowing guide arrows, subtle device outlines, soft glowing path lines leading forward. "
+        "Interwoven with floating particles and gentle geometric shapes. "
+        "Color palette harmonizes with the activity timeline section: cool blues, teal accents, and warm gold highlights. "
+        "Smooth horizontal gradient, cinematic lighting, ultra-wide 1920x450 banner format."
+    ),
+    # 2: 参与方法 → 奖品展示
+    (
+        "A wide panoramic transition strip from participation steps to winner highlights showcase. "
+        "Gleaming treasure chests, prize ribbon banners, floating gift boxes, and celebration confetti "
+        "emerging from the flow. "
+        "Color palette harmonizes with the participation section: warm golds, amber oranges, and cool teal contrasts. "
+        "Smooth horizontal gradient, cinematic lighting, ultra-wide 1920x450 banner format."
+    ),
+    # 3: 奖品展示 → 游戏介绍
+    (
+        "A wide panoramic transition strip from winner highlights into the game world lore. "
+        "Epic landscape silhouettes, floating game icons, magical portals, and atmospheric depth. "
+        "Color palette harmonizes with the prize section: rich golds, deep indigos, and ethereal cyan glows. "
+        "Smooth horizontal gradient, cinematic lighting, ultra-wide 1920x450 banner format."
+    ),
+]
+
+
+def _build_transition_banner_prompt(idx: int, design: dict) -> str:
+    """根据过渡位置索引和设计系统，构建单条 transition banner 的生图 prompt。"""
+    base_prompt = _TRANSITION_BANNER_PROMPTS[min(idx, len(_TRANSITION_BANNER_PROMPTS) - 1)]
+
+    style_info = design["_style_info"]
+    art_style_en = {
+        "realistic": "photorealistic cinematic style",
+        "anime": "Japanese anime cel style",
+        "cyberpunk": "cyberpunk neon aesthetic",
+        "guofeng_chinese": "Chinese guofeng ink-painting fusion",
+        "painterly": "painterly concept art with visible brush strokes",
+        "Q_style": "chibi Q-style cute illustrations",
+        "sci_fi": "sci-fi futuristic technology aesthetic",
+        "fantasy": "high fantasy epic style",
+        "minimalist": "minimalist clean geometric design",
+        "dark_gothic": "dark gothic ornate style",
+        "pop_art": "pop art bold graphic comic style",
+        "cel_shaded": "cel-shaded toon render style",
+    }.get(style_info.get("art_style", ""), "fantasy game art style")
+
+    color_mood_en = {
+        "warm_gold_orange": "warm gold-orange-amber tones",
+        "cool_blue_purple": "cool blue-cyan-purple tones",
+        "high_saturation_clash": "vivid high-saturation colors",
+        "muted_earth": "muted earthy desaturated tones",
+        "monochrome": "monochrome single-hue scheme",
+        "pastel_soft": "soft pastel dreamy palette",
+        "neon_dark": "dark with neon accent pops",
+        "split_complementary": "dual-color split-complementary scheme",
+    }.get(style_info.get("color_mood", ""), "cool blue-purple gradient")
+
+    a1 = design["_theme"].get("accent_bright", "#4488FF")
+    a2 = design["_theme"].get("accent_bright_alt", "#88CCFF")
+    bg_hex = design["_theme"].get("bg_page", "#0A0A1A")
+
+    return (
+        f"{base_prompt} "
+        f"Art style: {art_style_en}. "
+        f"Color mood: {color_mood_en}. "
+        f"Accent colors: {a1}, {a2}. "
+        f"Base background: {bg_hex}. "
+        f"Ultra-wide seamless decorative banner strip, 1920x450px. "
+        f"No text, no logos, no characters, no faces. "
+        f"High quality, 8k, masterpiece."
+    )
+
+
+def _make_transition_fallback(design: dict) -> Image.Image:
+    """生成纯色渐变兜底过渡条（无需 API 调用）。"""
+    h = COMBINED_BANNER_H
+    w = CANVAS_W
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    accent_bright = design["accent_bright"]
+    accent_bright_alt = design["accent_bright_alt"]
+    bg_page = design["bg_page"]
+    base_top = _mix_rgb(bg_page, _mix_rgb(accent_bright, accent_bright_alt, 0.5), 0.4)
+    base_bot = _mix_rgb(bg_page, _mix_rgb(accent_bright_alt, accent_bright, 0.3), 0.35)
+    for i in range(h):
+        t = i / max(1, h - 1)
+        c = _mix_rgb(base_top, base_bot, t)
+        draw.line([(0, i), (w, i)], fill=(*c, 255))
+    return img
+
+
+def _generate_transition_banners(design: dict, out_dir: Path, count: int = 4) -> list[Image.Image | None]:
+    """生成 count 条 transition banner 图片（顺序调用 API）。已存在则直接复用，不重新生成。"""
+    from scripts.changtu.micu_image_gen import run_micu_t2i
+    banners: list[Image.Image | None] = []
+    for idx in range(count):
+        out_path = out_dir / f"_email_transition_{idx}.png"
+        raw_path = out_dir / f"_email_transition_{idx}.raw.png"
+
+        # ── 缓存命中：直接读取已有文件 ──
+        for cached in (out_path, raw_path):
+            if cached.is_file() and cached.stat().st_size > 10000:
+                try:
+                    img = Image.open(cached).convert("RGBA")
+                    banners.append(img)
+                    print(f"[邮件长图/过渡Banner] [{idx+1}/{count}] 复用缓存: {cached.name}", flush=True)
+                    break
+                except Exception:
+                    pass
+        else:
+            # ── 未命中：调用 API 生成 ──
+            prompt = _build_transition_banner_prompt(idx, design)
+            print(f"[邮件长图/过渡Banner] 生成 [{idx+1}/{count}] ({CANVAS_W}×{COMBINED_BANNER_H}px)...", flush=True)
+            try:
+                raw_result = run_micu_t2i(
+                    prompt=prompt,
+                    output_path=raw_path,
+                    width=CANVAS_W,
+                    height=COMBINED_BANNER_H,
+                )
+                img = Image.open(raw_result).convert("RGBA")
+                img.save(out_path)
+                banners.append(img)
+                print(f"[邮件长图/过渡Banner] [{idx+1}/{count}] 完成", flush=True)
+            except Exception as e:
+                print(f"[邮件长图/过渡Banner] [{idx+1}/{count}] 失败({e})，渐变兜底", flush=True)
+                banners.append(_make_transition_fallback(design))
+    return banners
+
+
+def _draw_combined_section_banner(canvas, x: int, y: int, w: int,
+                                   title: str, enum_label: str,
+                                   banner_img: Image.Image | None,
+                                   design: dict,
+                                   font_sec: ImageFont.FreeTypeFont,
+                                   font_enum: ImageFont.FreeTypeFont,
+                                   layout: str = "text_left",
+                                   subtitle: str = "") -> int:
+    """AI 装饰背景 + 分区标题合并为一条 Banner。
+    layout: "text_left" (文字左 + 装饰右) | "text_center" (文字居中 + 两侧装饰)
+    subtitle: 副标题文字；为空则不渲染副标题行，主标题在 banner 高度内垂直居中。
+    背景始终铺满画布全宽 (CANVAS_W)，文字区使用 x/w 定位。
+    """
+    h = COMBINED_BANNER_DISPLAY_H
+
+    # ── 1. AI 装饰背景（铺满画布全宽，居中裁剪到显示高度） ──
+    img = banner_img if banner_img is not None else _make_transition_fallback(design)
+    if img.height > h:
+        crop_top = (img.height - h) // 2
+        img = img.crop((0, crop_top, CANVAS_W, crop_top + h))
+    elif img.size != (CANVAS_W, h):
+        img = img.resize((CANVAS_W, h), Image.Resampling.LANCZOS)
+    rgba_bg = img.convert("RGBA")
+    canvas.paste(rgba_bg, (0, y), rgba_bg)
+
+    # ── 2. 色彩衍生 ──
+    bg_page = design["bg_page"]
+    accent_bright = design["accent_bright"]
+    accent_primary = design["_theme"].get("accent_primary", "")
+    vp = _boost_vivid(_hex_rgb(accent_primary) if accent_primary else accent_bright,
+                      sat_mul=1.28, val_mul=1.18)
+    pop = _boost_vivid(accent_bright, sat_mul=1.22, val_mul=1.15)
+
+    # ── 3. 文字区域遮罩已移除 ──
+    # 原来的暗色矩形遮罩（alpha=90）视觉上显示为一块明显的黑色底板。
+    # 现在改为仅靠文字描边保证可读性，不再叠加面积遮罩。
+    draw = ImageDraw.Draw(canvas)
+
+    # ── 4. ENUM 标签（为空则跳过） ──
+    shadow_c = (0, 0, 0, 200)
+    enum_c = _lighten(pop, 0.5)
+    if enum_label:
+        ew = draw.textbbox((0, 0), enum_label, font=font_enum)[2]
+        if layout == "text_left":
+            ex = x + (text_zone_w - ew) // 2
+        else:
+            ex = x + (w - ew) // 2
+        ey = y + (h - 60 - 8 - 100) // 2
+        for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, 2), (-2, 2), (2, -2)):
+            draw.text((ex + dx, ey + dy), enum_label, fill=shadow_c, font=font_enum)
+        draw.text((ex, ey), enum_label, fill=enum_c, font=font_enum)
+        title_top = ey + font_enum.size + 6
+    else:
+        # 无 ENUM 标签时，title 在 banner 高度内垂直居中
+        title_top = None  # 在下方计算
+
+    # ── 6. 分区标题 ──
+    title_c = (255, 255, 255)
+    tw = draw.textbbox((0, 0), title, font=font_sec)[2]
+    th = draw.textbbox((0, 0), title, font=font_sec)[3]
+    if layout == "text_left":
+        tx = x + (text_zone_w - tw) // 2
+    else:
+        tx = x + (w - tw) // 2
+    ty = title_top if title_top is not None else y + (h - th) // 2
+    for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-3, -3), (3, 3), (-3, 3), (3, -3)):
+        draw.text((tx + dx, ty + dy), title, fill=shadow_c, font=font_sec)
+    draw.text((tx, ty), title, fill=title_c, font=font_sec)
+
+    # ── 7. 副标题（有值才渲染） ──
+    if subtitle:
+        sub_c = (255, 255, 255, 210)
+        sw = draw.textbbox((0, 0), subtitle, font=font_enum)[2]
+        if layout == "text_left":
+            sx = x + (text_zone_w - sw) // 2
+        else:
+            sx = x + (w - sw) // 2
+        sy = ty + th + 12  # 主副标题间距
+        for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+            draw.text((sx + dx, sy + dy), subtitle, fill=shadow_c, font=font_enum)
+        draw.text((sx, sy), subtitle, fill=sub_c, font=font_enum)
+
+    return h
 
 
 def _draw_section_container(canvas, x: int, y: int, w: int, h: int,
@@ -691,14 +897,11 @@ def _draw_device_frame(canvas, x: int, y: int, w: int, h: int,
     frame_h = h + DEVICE_TITLEBAR_H
     bx, by = x, y
 
-    # 外框阴影
-    _drop_shadow(canvas, draw, bx, by, w, frame_h, DEVICE_FRAME_RADIUS, shadow_color=border_color)
-
     # 外框填充
     outer_fill = Image.new("RGBA", (w, frame_h), (*bg_card, 230))
     canvas.paste(outer_fill, (bx, by), outer_fill)
-    _draw_neon_border(canvas, bx, by, w, frame_h, border_color,
-                      radius=DEVICE_FRAME_RADIUS, glow_layers=4, line_width=DEVICE_BORDER_WIDTH)
+    # _draw_neon_border(canvas, bx, by, w, frame_h, border_color,
+    #                   radius=DEVICE_FRAME_RADIUS, glow_layers=4, line_width=DEVICE_BORDER_WIDTH)
 
     # 标题栏底色
     title_bg = Image.new("RGBA", (w, DEVICE_TITLEBAR_H), (*_darken(bg_card, 0.1), 200))
@@ -736,28 +939,30 @@ def _draw_method_section(canvas, draw, y: int,
                          accent: tuple[int, int, int],
                          bg_card: tuple[int, int, int],
                          border_color: tuple[int, int, int],
-                         text_secondary: tuple[int, int, int]) -> int:
+                         text_secondary: tuple[int, int, int],
+                         skip_ocr: bool = False) -> int:
     """EVENT02: 纵向堆叠，每项文字整行居中在上，截图在下（套设备边框），无磨砂框包裹。"""
-    if not method_texts:
+    if not method_texts and not screenshots:
         return y
     content_w = CANVAS_W - SECTION_PAD_LR * 2
     text_w = int(content_w * 0.85)
     img_w = int(content_w * 0.90)
 
     cy = y
-    for i, text in enumerate(method_texts):
-        lines = _wrap_text(draw, text, font_desc, text_w)
-        lh = _line_height(font_desc)
-        text_h = lh * len(lines)
+    count = max(len(method_texts), len(screenshots))
+    for i in range(count):
+        if i < len(method_texts):
+            text = method_texts[i]
+            lines = _wrap_text(draw, text, font_desc, text_w)
+            lh = _line_height(font_desc)
+            text_h = lh * len(lines)
 
-        # 文字居中
-        tx = SECTION_PAD_LR + (content_w - text_w) // 2
-        ty = cy
-        for li, line in enumerate(lines):
-            line_w = draw.textbbox((0, 0), line, font=font_desc)[2]
-            lx = (CANVAS_W - line_w) // 2
-            draw.text((lx, ty + li * lh), line, fill=text_secondary, font=font_desc)
-        cy = ty + text_h + CARD_GAP
+            ty = cy
+            for li, line in enumerate(lines):
+                line_w = draw.textbbox((0, 0), line, font=font_desc)[2]
+                lx = (CANVAS_W - line_w) // 2
+                draw.text((lx, ty + li * lh), line, fill=text_secondary, font=font_desc)
+            cy = ty + text_h + CARD_GAP
 
         # 截图 + 设备边框
         shot_img = screenshots[i][1] if i < len(screenshots) else None
@@ -785,7 +990,23 @@ def _draw_method_section(canvas, draw, y: int,
             ss = Image.composite(ssr, Image.new("RGBA", (img_w, shot_h), (0, 0, 0, 0)), sm)
             canvas.paste(ss, (ix, cy + DEVICE_TITLEBAR_H), ss)
 
-            cy += frame_h + CARD_GAP
+            # OCR 识别截图文字，并在截图下方渲染（已提供文字描述时跳过）
+            ocr_text = "" if skip_ocr else _ocr_screenshot(shot_img)
+            if ocr_text:
+                # 计算文字区域宽度（留白 10%）
+                ocr_w = int(img_w * 0.85)
+                ocr_lines = _wrap_text(draw, ocr_text, font_desc, int(img_w * 0.85))
+                lh = _line_height(font_desc)
+                ocr_h = lh * len(ocr_lines)
+                # 文字居中，在截图下方留 12px 间距
+                ocr_y = cy + DEVICE_TITLEBAR_H + shot_h + 12
+                for li, line in enumerate(ocr_lines):
+                    line_w = draw.textbbox((0, 0), line, font=font_desc)[2]
+                    lx = (CANVAS_W - line_w) // 2
+                    draw.text((lx, ocr_y + li * _line_height(font_desc)), line, fill=text_secondary, font=font_desc)
+                cy = ocr_y + ocr_h + CARD_GAP
+            else:
+                cy += frame_h + CARD_GAP
         else:
             cy += CARD_GAP
     return cy
@@ -823,11 +1044,11 @@ def _draw_history_cards(canvas, draw, y: int,
             if idx >= len(items):
                 break
             name, pimg = items[idx]
-            # 柔和投影（保留）
-            _drop_shadow(canvas, draw, rx, cy, card_w, card_h, CARD_RADIUS)
-            # 霓虹发光边框（卡片在分区容器内，无独立底色）
-            _draw_neon_border(canvas, rx, cy, card_w, card_h, border_color,
-                              radius=CARD_RADIUS, glow_layers=4, line_width=1)
+    # 柔和投影（已删除）
+    # _drop_shadow(canvas, draw, rx, cy, card_w, card_h, CARD_RADIUS)
+    # 霓虹发光边框（卡片在分区容器内，无独立底色）
+    # _draw_neon_border(canvas, rx, cy, card_w, card_h, border_color,
+    #                   radius=CARD_RADIUS, glow_layers=4, line_width=1)
             # image
             fitted = _fit_trimmed(pimg, card_w - CARD_IMG_PAD * 2, img_h - CARD_IMG_PAD * 2)
             fw, fh = fitted.size
@@ -894,16 +1115,34 @@ def _draw_intro_section(canvas, draw, y: int,
 
 def _draw_kv_title(draw, kv_display_h: int,
                    main_title: str, sub_title: str,
-                   font_title, font_sub) -> None:
+                   font_title) -> None:
+    """在 KV 上绘制主副标题，使用同字体不同号，带白字黑描边。"""
     sub_bottom = kv_display_h - 80
     text_y = sub_bottom - KV_SUBTITLE_SIZE - KV_TITLE_SUB_GAP - KV_TITLE_SIZE
+    
+    # 副标题字体：同主标题字体，84pt
+    font_sub = _load_font(font_title, KV_SUBTITLE_SIZE)
+    
+    # 白字黑描边颜色
+    title_c = (255, 255, 255)
+    shadow_c = (0, 0, 0, 200)
+    
+    # ── 主标题 ──
     fw = draw.textbbox((0, 0), main_title, font=font_title)[2]
-    draw.text(((CANVAS_W - fw) // 2, text_y), main_title,
-              fill=(255, 255, 255), font=font_title)
+    tx = (CANVAS_W - fw) // 2
+    # 8方向描边
+    for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-3, -3), (3, 3), (-3, 3), (3, -3)):
+        draw.text((tx + dx, text_y + dy), main_title, fill=(0, 0, 0, 200), font=font_title)
+    draw.text((tx, text_y), main_title, fill=title_c, font=font_title)
+
+    # ── 副标题 ──
     sy = text_y + KV_TITLE_SIZE + KV_TITLE_SUB_GAP
     fw2 = draw.textbbox((0, 0), sub_title, font=font_sub)[2]
-    draw.text(((CANVAS_W - fw2) // 2, sy), sub_title,
-              fill=(255, 255, 255), font=font_sub)
+    tx2 = (CANVAS_W - fw2) // 2
+    # 8方向描边
+    for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2), (-2, -2), (2, 2), (-2, 2), (2, -2)):
+        draw.text((tx2 + dx, sy + dy), sub_title, fill=(0, 0, 0, 200), font=font_sub)
+    draw.text((tx2, sy), sub_title, fill=title_c, font=font_sub)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1093,14 +1332,99 @@ def _default_style_info() -> dict:
         "text_should_be": "light",
         "frame_style": "glowing_neon",
         "frame_glow_color_name": "cool_blue",
-        "decor_elements": [],
+"decor_elements": [],
         "sticker_ideas": [],
         "card_style": "dark_glass",
     }
 
 
+def _ocr_screenshot(img: Image.Image) -> str:
+    """对单张截图进行 OCR 文字识别，复用 Vision API (chat/completions)。
+    返回识别出的纯文本（无 Markdown/JSON/解释），失败返回空字符串。"""
+    import io
+    import base64
+    import requests
+    import os
+
+    api_key = ""
+    base_url = ""
+    vision_model = "gpt-4o"
+
+    moxingemini_key = os.environ.get("MOXINGEMINI_API_KEY", "").strip()
+    if moxingemini_key and moxingemini_key.startswith("sk-"):
+        api_key = moxingemini_key
+        base_url = os.environ.get("MOXINGEMINI_BASE_URL", "https://www.moxin.studio").strip()
+        vision_model = os.environ.get("MOXINGEMINI_MODEL", "gpt-4o").strip()
+    if not api_key:
+        moxingpt_key = os.environ.get("MOXINGPT_API_KEY", "").strip()
+        if moxingpt_key and moxingpt_key.startswith("sk-"):
+            api_key = os.environ.get("MOXINGPT_API_KEY", "").strip()
+            base_url = os.environ.get("MOXINGPT_BASE_URL", "https://www.moxin.studio").strip()
+            vision_model = os.environ.get("MOXINGPT_MODEL", "gpt-4o").strip()
+    if not api_key:
+        packygpt_key = os.environ.get("PACKYGPT_API_KEY", "").strip()
+        if packygpt_key and packygpt_key.startswith("sk-"):
+            api_key = os.environ.get("PACKYGPT_API_KEY", "").strip()
+            base_url = "https://www.packyapi.com"
+    if not api_key:
+        micu_key = os.environ.get("MICUGEMINI_API_KEY", os.environ.get("MICUAPI_API_KEY", "")).strip()
+        if micu_key and micu_key.startswith("sk-"):
+            api_key = micu_key
+            base_url = "https://www.micuapi.ai"
+
+    if not api_key:
+        print("[邮件长图/OCR] 未找到可用的 Vision Key，跳过 OCR", flush=True)
+        return ""
+
+    if not base_url:
+        base_url = os.environ.get("GOOGLE_GEMINI_BASE_URL", "https://www.packyapi.com").strip()
+    base_url = base_url.rstrip("/")
+
+    # Encode image to base64
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="JPEG", quality=85)
+    img_b64 = base64.b64encode(buf.getvalue()).decode()
+
+    prompt = """请提取这张图片中的所有可见文字（中文/英文/数字/标点），按阅读顺序输出纯文本。
+要求：
+1. 仅输出识别到的文字内容，不要任何解释、标签、JSON、Markdown
+2. 保持原文的段落结构和标点
+3. 无文字时输出空行
+4. 忽略图标、装饰性元素，只提取可读文字"""
+
+    body = {
+        "model": "gpt-4o",
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+        ]}],
+        "temperature": 0.0,
+        "max_tokens": 1024,
+    }
+
+    url = f"{base_url}/v1/chat/completions"
+    print(f"[邮件长图/OCR] POST {url} model=gpt-4o...", flush=True)
+
+    try:
+        r = requests.post(url, json=body, headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }, timeout=60)
+        r.raise_for_status()
+        data = r.json()
+        choices = data.get("choices") or []
+        if choices:
+            content = choices[0].get("message", {}).get("content", "")
+            text = content.strip()
+            print(f"[邮件长图/OCR] 识别到 {len(text)} 字符", flush=True)
+            return text
+    except Exception as e:
+        print(f"[邮件长图/OCR] 失败: {e}", flush=True)
+    return ""
 
 
+# ══════════════════════════════════════════════════════════════════
+#  Design system (K-means 精确色 + Vision 语义 → 统一设计字典)
 # ══════════════════════════════════════════════════════════════════
 #  Design system (K-means 精确色 + Vision 语义 → 统一设计字典)
 # ══════════════════════════════════════════════════════════════════
@@ -1269,6 +1593,17 @@ def _build_decor_prompt(design: dict) -> str:
 
 def _generate_decor_bg(height: int, design: dict,
                        output_path: Path) -> Image.Image:
+    # ── 缓存命中：直接读取已有文件 ──
+    if output_path.is_file() and output_path.stat().st_size > 10000:
+        try:
+            bg = Image.open(output_path).convert("RGB")
+            if bg.size != (CANVAS_W, height):
+                bg = bg.resize((CANVAS_W, height), Image.Resampling.LANCZOS)
+            print(f"[邮件长图/装饰] 复用缓存: {output_path.name}", flush=True)
+            return bg
+        except Exception:
+            pass
+
     from scripts.changtu.micu_image_gen import run_micu_t2i
 
     prompt = _build_decor_prompt(design)
@@ -1347,18 +1682,18 @@ def _generate_decor_sticker(sticker_idea: str, design: dict,
 #  Height calculation (pre-flight)
 # ══════════════════════════════════════════════════════════════════
 
-def _calc_event01_height(draw, event_date: str, prizes: list,
+def _calc_event01_height(draw, event_date: str, date_images: list,
                          font_date, font_name) -> int:
-    h = SECTION_BANNER_H + BADGE_CONTENT_GAP  # 炫彩栏头
+    h = COMBINED_BANNER_DISPLAY_H + BADGE_CONTENT_GAP
     if event_date.strip():
         h += SECTION_PAD_TOP // 2 + _line_height(font_date)
-    if prizes:
-        rows = _prize_rows(len(prizes))
+    if date_images:
+        rows = _prize_rows(len(date_images))
         content_w = CANVAS_W - SECTION_PAD_LR * 2
         card_w = (content_w - (max(rows) - 1) * CARD_GAP) // max(rows)
         icon_size = min(card_w - CARD_IMG_PAD * 2, 320)
         card_h = icon_size + CARD_IMG_PAD + CARD_NAME_H
-        h += (card_h + CARD_GAP) * len(rows) - CARD_GAP + SECTION_PAD_BOTTOM
+        h += CARD_GAP + (card_h + CARD_GAP) * len(rows) - CARD_GAP + SECTION_PAD_BOTTOM
     else:
         h += SECTION_PAD_BOTTOM
     return h
@@ -1366,16 +1701,18 @@ def _calc_event01_height(draw, event_date: str, prizes: list,
 
 def _calc_event02_height(draw, method_texts: list[str], screenshots: list,
                          font_desc) -> int:
-    h = SECTION_BANNER_H + BADGE_CONTENT_GAP
-    if not method_texts:
+    h = COMBINED_BANNER_DISPLAY_H + BADGE_CONTENT_GAP
+    count = max(len(method_texts), len(screenshots))
+    if count == 0:
         return h + SECTION_PAD_BOTTOM
     content_w = CANVAS_W - SECTION_PAD_LR * 2
     text_w = int(content_w * 0.85)
     img_w = int(content_w * 0.90)
-    for i, text in enumerate(method_texts):
-        lines = _wrap_text(draw, text, font_desc, text_w)
-        text_h = _line_height(font_desc) * len(lines)
-        h += text_h + CARD_GAP
+    for i in range(count):
+        if i < len(method_texts):
+            lines = _wrap_text(draw, method_texts[i], font_desc, text_w)
+            text_h = _line_height(font_desc) * len(lines)
+            h += text_h + CARD_GAP
         shot_img = screenshots[i][1] if i < len(screenshots) else None
         if shot_img:
             shot_h = int(img_w * shot_img.height / max(shot_img.width, 1))
@@ -1386,28 +1723,41 @@ def _calc_event02_height(draw, method_texts: list[str], screenshots: list,
 
 
 def _calc_event03_height(items: list) -> int:
-    h = SECTION_BANNER_H + BADGE_CONTENT_GAP
+    h = COMBINED_BANNER_DISPLAY_H + BADGE_CONTENT_GAP
     if not items:
         return h + SECTION_PAD_BOTTOM
     content_w = CANVAS_W - SECTION_PAD_LR * 2
     rows = _prize_rows(len(items))
     card_w = (content_w - (max(rows) - 1) * CARD_GAP) // max(rows)
-    img_ratio = 0.72
-    card_h = int(card_w * img_ratio) + CARD_NAME_H
+    icon_size = min(card_w - CARD_IMG_PAD * 2, 320)
+    card_h = icon_size + CARD_IMG_PAD + CARD_NAME_H
     h += (card_h + CARD_GAP) * len(rows) - CARD_GAP + SECTION_PAD_BOTTOM
     return h
 
 
 def _calc_event04_height(draw, intro_text: str, font_intro) -> int:
-    h = SECTION_BANNER_H + BADGE_CONTENT_GAP
+    h = COMBINED_BANNER_DISPLAY_H + BADGE_CONTENT_GAP
     if not intro_text.strip():
         return h + SECTION_PAD_BOTTOM
     content_w = CANVAS_W - SECTION_PAD_LR * 2
     text_box_w = content_w - TEXT_BOX_PAD_X * 2
     lines = _wrap_text(draw, intro_text, font_intro, text_box_w)
-    text_h = _line_height(font_intro) * len(lines)
+    # 使用 textbbox 精确测量每行高度，避免估算误差
+    text_h = 0
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font_intro)
+        text_h += (bbox[3] - bbox[1])
     h += text_h + TEXT_BOX_PAD_Y * 2 + SECTION_PAD_BOTTOM
     return h
+
+
+# ── Section background box (bottom of each section) ──
+def _draw_section_bg_box(canvas, x: int, y: int, w: int, h: int, alpha: int = 80) -> None:
+    """在 section 底部绘制半透明背景框。"""
+    if h <= 0:
+        return
+    bg = Image.new("RGBA", (w, h), (0, 0, 0, alpha))
+    canvas.paste(bg, (x, y), bg)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1422,6 +1772,7 @@ def make_email_poster(
     main_title: str = "",
     sub_title: str = "",
     event_date: str = "",
+    date_dir: str = "",
     prize_dir: str = "",
     prize_order: list[str] | None = None,
     method_desc: str = "",
@@ -1433,6 +1784,7 @@ def make_email_poster(
     brand_logo: str | Path | None = None,
     brand_name: str = "",
     brand_sublabel: str = "",
+    section_titles: dict | None = None,
 ) -> Path:
     """Generate the email poster (1920px wide, 4-section layout)."""
     # ── Fonts ──
@@ -1477,6 +1829,7 @@ def make_email_poster(
     badge_text_color = (255, 255, 255)
 
     # ── Load materials ──
+    date_images = _load_prizes(date_dir)
     prizes = _load_prizes(prize_dir, prize_order)
     method_screenshots = _load_prizes(method_dir)
     history_items = _load_prizes(history_dir, history_order)
@@ -1489,15 +1842,35 @@ def make_email_poster(
         if lp.is_file():
             brand_logo_img = Image.open(lp).convert("RGBA")
 
+    # ── Parse section titles (support "主标题|副标题" format) ──
+    _default_titles = {"event01": "活动时间", "event02": "参与方法",
+                       "event03": "奖品展示", "event04": "活动规则"}
+    titles = {**_default_titles, **(section_titles or {})}
+    _banner_titles: dict[str, str] = {}      # 主标题
+    _banner_subtitles: dict[str, str] = {}   # 副标题（无则为空串）
+    for k, v in titles.items():
+        if v and "|" in str(v):
+            parts = str(v).split("|", 1)
+            _banner_titles[k] = parts[0].strip()
+            _banner_subtitles[k] = parts[1].strip()
+        else:
+            _banner_titles[k] = str(v) if v else ""
+            _banner_subtitles[k] = ""
+    show_section = {k: bool(titles.get(k)) for k in _default_titles}
+    _section_order = ["event01", "event02", "event03", "event04"]
+    _enum_labels = {"event01": "EVENT01", "event02": "EVENT02",
+                    "event03": "EVENT03", "event04": "EVENT04"}
+
     # ── Pre-calc heights ──
     draw_dummy = ImageDraw.Draw(Image.new("RGB", (CANVAS_W, 100)))
-    s1_h = _calc_event01_height(draw_dummy, event_date, prizes, font_date, font_name)
+    s1_h = _calc_event01_height(draw_dummy, event_date, date_images, font_date, font_name)
     s2_h = _calc_event02_height(draw_dummy, method_texts, method_screenshots, font_desc)
-    s3_h = _calc_event03_height(history_items)
+    s3_h = _calc_event03_height(prizes)
     s4_h = _calc_event04_height(draw_dummy, intro_text, font_intro)
 
+    section_heights = {"event01": s1_h, "event02": s2_h, "event03": s3_h, "event04": s4_h}
     section_total_h = s1_h + SECTION_GAP + s2_h + SECTION_GAP + s3_h + SECTION_GAP + s4_h
-    canvas_h = kv_display_h + section_total_h
+    canvas_h = kv_display_h + section_total_h + CANVAS_PAD_BOTTOM
 
     # ── Generate decor background ──
     decor_path = out_dir / "_email_decor_bg.png"
@@ -1507,10 +1880,21 @@ def make_email_poster(
         print(f"[邮件长图/装饰] 生成失败: {e}，使用纯色渐变兜底", flush=True)
         decor_bg = Image.new("RGB", (CANVAS_W, canvas_h), bg_page)
 
+    # ── Generate transition banners (AI) ──
+    n_shown = sum(1 for k in _section_order if show_section[k])
+    print(f"[邮件长图] 生成 {n_shown} 个显示区块，需 {n_shown} 条过渡 Banner", flush=True)
+    transition_banners = _generate_transition_banners(D, out_dir, count=n_shown)
+
     # ── Canvas ──
     canvas = decor_bg.convert("RGBA")
+
+    # ── 全局遮罩：40% 黑色，覆盖全画布（背景之上，KV/内容之下） ──
+    overlay = Image.new("RGBA", (CANVAS_W, canvas_h), (0, 0, 0, 102))
+    canvas.paste(overlay, (0, 0), overlay)
+
     kv_rgba = kv_resized.convert("RGBA")
     canvas.paste(kv_rgba, (0, 0), kv_rgba)
+
     draw = ImageDraw.Draw(canvas)
 
     # ── Brand header (KV 左上角) ──
@@ -1518,63 +1902,80 @@ def make_email_poster(
         _draw_brand_header(canvas, draw, brand_logo_img, brand_name,
                            brand_sublabel, font_brand, font_brand_sub, accent)
 
+    # ── Draw section background box (alpha=80) ──
+    def _draw_section_bg_box(canvas, x: int, y: int, w: int, h: int, alpha: int = 80):
+        """Draw a rounded rect background box at section bottom."""
+        if h <= 0:
+            return
+        box = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(box)
+        r = CARD_RADIUS
+        d.rounded_rectangle([(0, 0), (w - 1, h - 1)], radius=r, fill=(0, 0, 0, alpha))
+        canvas.paste(box, (x, y), box)
+
+
     # ── KV title ──
     if main_title or sub_title:
         _draw_kv_title(draw, kv_display_h, main_title, sub_title,
-                       font_title_big, _yahei(KV_SUBTITLE_SIZE))
-
-    # ── Subdue overlay below KV ──
-    sy = kv_display_h
-    overlay = Image.new("RGBA", (CANVAS_W, section_total_h), (0, 0, 0, 45))
-    canvas.paste(overlay, (0, sy), overlay)
+                       font_title_big)
 
     content_w = CANVAS_W - SECTION_PAD_LR * 2
+    banner_idx = 0
+    sy = kv_display_h  # Section banners start after KV image
 
-    # ── EVENT01: 活动时间 ──
-    _draw_event_section_banner(canvas, SECTION_PAD_LR, sy, content_w,
-                               "活动时间", "EVENT01", D, font_sec, font_enum_local)
-    cy = sy + SECTION_BANNER_H + BADGE_CONTENT_GAP
-    if event_date.strip():
-        cy = _draw_date_line(canvas, draw, cy, event_date, font_date,
-                             accent, text_primary)
-    if prizes:
-        cy = _draw_circular_icon_grid(canvas, draw, cy, prizes, font_name,
-                                      accent, bg_card_dark, border_color, text_primary)
+    for section_key in _section_order:
+        if not show_section[section_key]:
+            continue
 
-    sy = sy + s1_h + SECTION_GAP
+        sec_title = _banner_titles[section_key]
+        sec_subtitle = _banner_subtitles[section_key]
+        section_h = section_heights[section_key]
+        banner_img = transition_banners[banner_idx]
+        banner_idx += 1
 
-    # ── EVENT02: 参与方法 ──
-    _draw_event_section_banner(canvas, SECTION_PAD_LR, sy, content_w,
-                               "参与方法", "EVENT02", D, font_sec, font_enum_local)
-    cy = sy + SECTION_BANNER_H + BADGE_CONTENT_GAP
-    if method_texts:
-        cy = _draw_method_section(canvas, draw, cy, method_texts,
-                                  method_screenshots, font_desc,
-                                  accent, bg_card_dark, border_color, text_primary)
+        _draw_combined_section_banner(canvas, SECTION_PAD_LR, sy, content_w,
+                                      sec_title, "", banner_img,
+                                      D, font_sec, font_enum_local, layout="text_center",
+                                      subtitle=sec_subtitle)
+        cy = sy + COMBINED_BANNER_DISPLAY_H + BADGE_CONTENT_GAP
 
-    sy = sy + s2_h + SECTION_GAP
+        # ── 先画背景框（在内容之下） ──
+        content_h = section_h - COMBINED_BANNER_DISPLAY_H - BADGE_CONTENT_GAP
+        if content_h > 0:
+            _draw_section_bg_box(canvas, SECTION_PAD_LR, cy, content_w, content_h, alpha=80)
 
-    # ── EVENT03: 往期中奖 ──
-    _draw_event_section_banner(canvas, SECTION_PAD_LR, sy, content_w,
-                               "往期中奖", "EVENT03", D, font_sec, font_enum_local)
-    cy = sy + SECTION_BANNER_H + BADGE_CONTENT_GAP
-    if history_items:
-        cy = _draw_history_cards(canvas, draw, cy, history_items, font_name,
-                                 accent, bg_card_dark, border_color, text_primary)
+        # ── Content drawing per section ──
+        if section_key == "event01":
+            if event_date.strip():
+                cy = _draw_date_line(canvas, draw, cy, event_date, font_date,
+                                     accent, text_primary)
+            if date_images:
+                cy = _draw_circular_icon_grid(canvas, draw, cy, date_images, font_name,
+                                              accent, bg_card_dark, border_color, text_primary)
 
-    sy = sy + s3_h + SECTION_GAP
+        elif section_key == "event02":
+            if method_texts:
+                cy = _draw_method_section(canvas, draw, cy, method_texts,
+                                          method_screenshots, font_desc,
+                                          accent, bg_card_dark, border_color, text_primary,
+                                          skip_ocr=bool(method_texts))
 
-    # ── EVENT04: 游戏介绍 ──
-    _draw_event_section_banner(canvas, SECTION_PAD_LR, sy, content_w,
-                               "游戏介绍", "EVENT04", D, font_sec, font_enum_local)
-    cy = sy + SECTION_BANNER_H + BADGE_CONTENT_GAP
-    if intro_text.strip():
-        cy = _draw_intro_section(canvas, draw, cy, intro_text, font_intro,
-                                 bg_card_dark, border_color, text_primary)
+        elif section_key == "event03":
+            if prizes:
+                cy = _draw_circular_icon_grid(canvas, draw, cy, prizes, font_name,
+                                              accent, bg_card_dark, border_color, text_primary)
+
+        elif section_key == "event04":
+            if intro_text.strip():
+                cy = _draw_intro_section(canvas, draw, cy, intro_text, font_intro,
+                                         bg_card_dark, border_color, text_primary)
+
+        sy = sy + section_heights[section_key] + SECTION_GAP
 
     # ── Save ──
     out_path = Path(output).resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"[邮件长图] 准备保存到: {out_path}", flush=True)
     canvas.convert("RGB").save(out_path, quality=95)
     print(f"[邮件长图] 已保存: {out_path}", flush=True)
     return out_path

@@ -145,6 +145,7 @@ py scripts/run_ranking.py --csv output/排行榜_xxx/data.json \
 - [流程与规则](docs/流程与规则.md)
 - [AI 协作规范](docs/AI协作规范.md)
 - [战报规范](docs/战报规范.md)
-- [排行榜说明](docs/ranking.md)
 - [图片处理说明](docs/图片处理说明.md)
 - [新增后端指南](docs/新增后端指南.md)
+- [开发经验教训](docs/开发经验教训.md)
+- [Icon 批量下载指南](docs/icon-fetch-guide.md)

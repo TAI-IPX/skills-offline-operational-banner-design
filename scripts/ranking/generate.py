@@ -8,6 +8,7 @@ import sys
 import os
 import base64
 import hashlib
+import random
 from pathlib import Path
 from datetime import datetime
 from jinja2 import Environment, FileSystemLoader
@@ -222,9 +223,12 @@ def find_body_font(assets_dir: Path = None):
 
 
 def resolve_crowns(assets_dir: Path) -> dict:
+    crown_root = assets_dir / "crowns"
+    styles = sorted([d for d in crown_root.iterdir() if d.is_dir()])
+    chosen = random.choice(styles) if styles else crown_root
     crowns = {}
     for rank, fname in [(1, "crown_no1.png"), (2, "crown_no2.png"), (3, "crown_no3.png")]:
-        p = assets_dir / "crowns" / fname
+        p = chosen / fname
         if p.exists():
             crowns[f"crown_no{rank}"] = str(p.absolute())
     return crowns
@@ -264,7 +268,7 @@ def generate(data_file: str, output_dir: str = None, lang: str = "zh",
         if not bg_path.exists():
             bg_path = None
     if not bg_path:
-        bg_path = _assets / "hero_bg.png"
+        bg_path = _assets / "hero_bg" / "hero_bg.png"
     if bg_path.exists():
             b64 = base64.b64encode(bg_path.read_bytes()).decode()
             suffix = bg_path.suffix.lower()
@@ -283,39 +287,25 @@ def generate(data_file: str, output_dir: str = None, lang: str = "zh",
     body_font = find_body_font(_assets)
     body_font_format = "opentype"
 
-    decorations = data.get("decorations", {})
-    medal_style = decorations.get("medal_style", "")
-    medals = {}
-    medal_map = {}
-    if medal_style:
-        medal_dir = _assets / "medals"
-        for tier, rank in [("gold", 1), ("silver", 2), ("bronze", 3)]:
-            key = f"medal_{tier}"
-            for fname in [f"{medal_style}_{tier}.png", f"{tier}.png"]:
-                fp = medal_dir / fname
-                if fp.exists():
-                    b64 = base64.b64encode(fp.read_bytes()).decode()
-                    data_url = f"data:image/png;base64,{b64}"
-                    medals[key] = data_url
-                    medal_map[rank] = data_url
-                    break
-        for fname in ["corner_badge.png"]:
-            fp = medal_dir / fname
-            if fp.exists():
-                b64 = base64.b64encode(fp.read_bytes()).decode()
-                medals["medal_corner"] = f"data:image/png;base64,{b64}"
-                break
-
     crowns = resolve_crowns(_assets)
 
+    badge_new_path = ""
+    badge_root = _assets / "badge"
+    badge_styles = sorted([d for d in badge_root.iterdir() if d.is_dir()])
+    badge_dir = random.choice(badge_styles) if badge_styles else badge_root
+    badge_new_file = badge_dir / "badge_new.png"
+    if badge_new_file.exists():
+        b64 = base64.b64encode(badge_new_file.read_bytes()).decode()
+        badge_new_path = f"data:image/png;base64,{b64}"
+
     logo_path = ""
-    logo_file = _assets / "logo_left.png"
+    logo_file = _assets / "logo" / "logo_left.png"
     if logo_file.exists():
         b64 = base64.b64encode(logo_file.read_bytes()).decode()
         logo_path = f"data:image/png;base64,{b64}"
 
     logo_right_path = ""
-    logo_right_file = _assets / "logo_right.png"
+    logo_right_file = _assets / "logo" / "logo_right.png"
     if logo_right_file.exists():
         b64 = base64.b64encode(logo_right_file.read_bytes()).decode()
         logo_right_path = f"data:image/png;base64,{b64}"
@@ -328,9 +318,6 @@ def generate(data_file: str, output_dir: str = None, lang: str = "zh",
         rankings=rankings,
         hero_bg=hero_bg,
         overlay=overlay,
-        medals=medals,
-        medal_map=medal_map,
-        medal_style=medal_style,
         title_font=title_font,
         title_font_format=title_font_format,
         body_font=body_font,
@@ -344,7 +331,7 @@ def generate(data_file: str, output_dir: str = None, lang: str = "zh",
         title=title_text,
         html_lang=loc["html_lang"],
         logo_text=loc["logo_text"],
-        badge_new=loc["badge_new"],
+        badge_new_path=badge_new_path,
         footer_note=data.get(
             "footer_note",
             loc.get("default_footer_note", ""),

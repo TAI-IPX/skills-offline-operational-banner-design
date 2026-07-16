@@ -50,8 +50,12 @@ _ENV_KEYS = (
     "MICUAPI_API_KEY",
     "MICUGEMINI_API_KEY",
     "MOXINGPT_API_KEY",
+    "MOXINGPT_BASE_URL",
+    "MOXINGPT_MODEL",
     "MOXINGEMINI_API_KEY",
     "MOXINGEMINI_BASE_URL",
+    "MOXINGEMINI_MODEL",
+    "MOXINGEMINI_MODEL_POOL",
     "XINGCHENGGPT_API_KEY",
     "XINGCHENGGPT_BASE_URL",
     "XINGCHENGEMINI_API_KEY",
@@ -177,6 +181,7 @@ def main() -> None:
     parser.add_argument("--brand-logo", default=None, dest="brand_logo", help="左上角品牌小 icon 路径（-g 邮件长图 时有效）")
     parser.add_argument("--brand-name", default=None, dest="brand_name", help="左上角品牌行主文字（-g 邮件长图 时有效）")
     parser.add_argument("--brand-sublabel", default=None, dest="brand_sublabel", help="左上角品牌行小字（-g 邮件长图 时有效）")
+    parser.add_argument("--section-titles", default=None, dest="section_titles", help='自定义分区标题 JSON（-g 邮件长图 时有效），例：{"event01":"福利活动","event02":"参与方式","event03":null,"event04":"活动规则"}')
     args = parser.parse_args()
 
     # ══════════════ 块1: Gemini 图像编辑 Key 配置 ══════════════
@@ -242,6 +247,20 @@ def main() -> None:
             os.environ["GEMINI_API_KEY"] = xcg1_key.strip()
         else:
             print("Error: 使用 -xingchengemini1 时请在 .env 中设置 XINGCHENGEMINI1_API_KEY（且以 sk- 开头）", file=sys.stderr)
+            sys.exit(1)
+
+    if getattr(args, "moxingemini", False):
+        os.environ["GOOGLE_GEMINI_BASE_URL"] = os.environ.get("MOXINGEMINI_BASE_URL", "https://www.moxin.studio").strip()
+        if not os.environ.get("GEMINI_MODEL"):
+            _default_pool = os.environ.get("MOXINGEMINI_MODEL_POOL",
+                "[特次卡】gemini-3.1-pro-preview-think,[特价次卡]gemini-3.1-pro-preview,[特价次卡]gemini-2.5-pro,[次]gemini-3.1-flash-image-preview,[次]gemini-3.1-flash-image,[次]gemini-3-pro-image,[次]gemini-3-pro-image-preview")
+            os.environ["GEMINI_MODEL"] = _default_pool
+        os.environ["GEMINI_VISION_MODEL"] = os.environ.get("MOXINGEMINI_VISION_MODEL", "[次]gemini-3.1-flash-image-preview")
+        mg_key = get_env_key("MOXINGEMINI_API_KEY")
+        if mg_key and mg_key.strip().startswith("sk-"):
+            os.environ["GEMINI_API_KEY"] = mg_key.strip()
+        else:
+            print("Error: 使用 -moxingemini 时请在 .env 中设置 MOXINGEMINI_API_KEY（且以 sk- 开头）", file=sys.stderr)
             sys.exit(1)
 
     # ══════════════ 块2: 生图后端选择 ══════════════
@@ -327,20 +346,21 @@ def main() -> None:
     elif getattr(args, "xingchengemini", False):
         os.environ["BANNER_IMAGE_BACKEND"] = "gemini"
 
-    # --moxingemini：块1已替换 GEMINI_API_KEY+GOOGLE_GEMINI_BASE_URL，块2设 BANNER_IMAGE_BACKEND=gemini
-    elif getattr(args, "moxingemini", False):
-        os.environ["BANNER_IMAGE_BACKEND"] = "gemini"
-
+    # --moxingpt 必须在 --moxingemini 之前，保证 gpt-image-2 生图优先；组合时编辑走 Gemini
     elif getattr(args, "moxingpt", False):
         moxingpt_key = get_env_key("MOXINGPT_API_KEY")
         if moxingpt_key and moxingpt_key.strip().startswith("sk-"):
             os.environ["MOXINGPT_API_KEY"] = moxingpt_key.strip()
             os.environ["BANNER_IMAGE_BACKEND"] = "moxingpt"
-            if getattr(args, "xingchengemini1", False) or getattr(args, "xingchengemini", False) or getattr(args, "packy7s", False) or getattr(args, "packy", False):
+            if getattr(args, "xingchengemini1", False) or getattr(args, "xingchengemini", False) or getattr(args, "packy7s", False) or getattr(args, "packy", False) or getattr(args, "moxingemini", False):
                 os.environ["BANNER_EDIT_BACKEND"] = "gemini"
         else:
             print("Error: 使用 -moxingpt 时请在 .env 中设置 MOXINGPT_API_KEY（且以 sk- 开头）", file=sys.stderr)
             sys.exit(1)
+
+    # --moxingemini：块1已替换 GEMINI_API_KEY+GOOGLE_GEMINI_BASE_URL，块2设 BANNER_IMAGE_BACKEND=gemini
+    elif getattr(args, "moxingemini", False):
+        os.environ["BANNER_IMAGE_BACKEND"] = "gemini"
 
     elif getattr(args, "packy7s", False):
         os.environ["BANNER_IMAGE_BACKEND"] = "gemini"
@@ -830,14 +850,11 @@ def main() -> None:
             sys.exit(r_ct.returncode)
 
     if has_email_poster:
-        # 若 --kv 已提供（KV 图上自带标题），则不叠加文字；否则正常传标题
-        _ep_kv_provided = (ref_to_use and ref_to_use.is_file()) or bool(getattr(args, "kv", None))
-        _ep_title = "" if _ep_kv_provided else main_title
-        _ep_subtitle = "" if _ep_kv_provided else subtitle
+        # 始终传入主副标题，KV 图与叠字相互独立
         cmd_ep = [
             PYTHON_EXE, str(EMAIL_POSTER_SCRIPT),
-            "-m", _ep_title,
-            "-s", _ep_subtitle,
+            "-m", main_title,
+            "-s", subtitle,
             "--output-dir", str(run_dir.resolve()),
             "--font-title", str(getattr(args, "font_title", None) or "fonts/title.otf"),
         ]
@@ -869,6 +886,8 @@ def main() -> None:
             cmd_ep.extend(["--brand-name", args.brand_name])
         if getattr(args, "brand_sublabel", None):
             cmd_ep.extend(["--brand-sublabel", args.brand_sublabel])
+        if getattr(args, "section_titles", None):
+            cmd_ep.extend(["--section-titles", args.section_titles])
         if getattr(args, "font_title", None):
             cmd_ep.extend(["--font-title", args.font_title])
         if getattr(args, "font_yahei", None):
