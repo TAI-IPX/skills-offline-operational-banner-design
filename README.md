@@ -35,48 +35,9 @@ py -m pip install -e ".[ranking]"    # 排行榜渲染
 cp .env.example .env
 # 编辑 .env，填入对应 Key（GEMINI_API_KEY / XINGCHENGGPT_API_KEY / MOXINGPT_API_KEY 等）
 ```
-
-### 使用
-
-```bash
-# 活动长图（全流程）
-py scripts/run_full_with_custom_prompt.py -g 活动长图 --xingchengpt --packy7s \
-  -m "主标题" -s "副标题" --event-date "活动时间" \
-  --prize-dir input/prizes --rules "规则一|规则二|规则三"
-
-# 战报（全流程）
-py scripts/run_full_with_custom_prompt.py -g 战报 --xingchengpt \
-  --report-dir <素材目录> -m "主标题" -s "副标题" \
-  --stat-group "标题|标签|值|标签|值" --font-family "字体名"
-
-# 邮件长图（全流程）
-py scripts/run_full_with_custom_prompt.py -g 邮件长图 \
-  -m "主标题" -s "副标题" --kv input/kv.png --xingchengpt \
-  --event-date "2026/7/6-2026/10/10" \
-  --prize-dir input/prizes --prize-order "礼盒2|礼盒1|礼盒4|礼盒3" \
-  --method-dir input/screenshots \
-  --method-desc "在联想应用商店...|在LegionZone..." \
-  --history-dir input/history --history-order "礼品1|礼品4|礼品3|礼品2" \
-  --intro-text "游戏介绍文字..."
-
-# 邮件长图仅合成（跳过 Step1，复用已有 KV）
-py scripts/run_email_poster.py --kv input/kv.png -m "主标题" -s "副标题" --xingchengpt \
-  --event-date "2026/7/6-2026/10/10" \
-  --prize-dir input/prizes --prize-order "礼盒2|礼盒1|礼盒4|礼盒3" \
-  --method-dir input/screenshots \
-  --method-desc "在联想应用商店...|在LegionZone..." \
-  --history-dir input/history --history-order "礼品1|礼品4|礼品3|礼品2" \
-  --intro-text "游戏介绍文字..."
-
-# 排行榜（全流程，CSV→JSON + 图标 + 背景 + 截图）
-py scripts/run_full_with_custom_prompt.py -g 排行榜 --xingchengpt \
-  --ranking-csv "input/ranking/榜单.csv" --ranking-theme gold
-
-
 ## 项目结构
 ```
 .
-
 ├── .env                     # API 密钥（勿提交）
 ├── .env.example             # 密钥模板
 ├── AGENTS.md                # Agent 协作说明
@@ -99,13 +60,3 @@ py scripts/run_full_with_custom_prompt.py -g 排行榜 --xingchengpt \
 ├── output/                  # 输出结果
 └── fonts/                   # 字体文件
 ```
-
-## 文档
-
-- [流程与规则](docs/流程与规则.md)
-- [AI 协作规范](docs/AI协作规范.md)
-- [战报规范](docs/战报规范.md)
-- [图片处理说明](docs/图片处理说明.md)
-- [新增后端指南](docs/新增后端指南.md)
-- [开发经验教训](docs/开发经验教训.md)
-- [Icon 批量下载指南](docs/icon-fetch-guide.md)
