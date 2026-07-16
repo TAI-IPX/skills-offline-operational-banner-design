@@ -74,7 +74,6 @@ py scripts/run_full_with_custom_prompt.py -g 排行榜 --xingchengpt \
 
 
 ## 项目结构
-
 ```
 .
 ├── .env                     # API 密钥（勿提交）
